@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <time.h>
+int main() {
+    int parent_to_child[2], child_to_parent[2];
+    int player1_choice, player2_choice;
+    int winner;
+
+    // Create pipes for communication
+    if (pipe(parent_to_child) == -1 || pipe(child_to_parent) == -1) {
+        perror("Pipe creation failed");
+        
+exit(EXIT_FAILURE);
+    }
+// Fork a child process
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) {
+        // Child process
+        close(parent_to_child[1]); // Close write end of parent-to-child pipe
+        close(child_to_parent[0]); // Close read end of child-to-parent pipe
+
+        // Get the player 2 choice from the parent
+        read(parent_to_child[0], &player2_choice, sizeof(player2_choice));
+
+        // Generate player 1's choice randomly
+   
+        printf("Enter ply2 choice (1: Rock, 2: Paper, 3: Scissors): ");
+        scanf("%d", &player1_choice);
+// Send player 1's choice to the parent
+        write(child_to_parent[1], &player1_choice, sizeof(player1_choice));
+
+        // Close the remaining pipe ends
+        close(parent_to_child[0]);
+        close(child_to_parent[1]);
+
+        exit(EXIT_SUCCESS);
+    } else {
+        // Parent process
+       
+        // Get player 1's choice from the user
+        printf("Enter ply1 choice (1: Rock, 2: Paper, 3: Scissors): ");
+        scanf("%d", &player1_choice);
+
+        // Send player 2's choice to the child
+        write(parent_to_child[1], &player1_choice, sizeof(player1_choice));
+
+        // Receive player 1's choice from the child
+        read(child_to_parent[0], &player2_choice, sizeof(player2_choice));
+// Determine the winner
+        if (player1_choice == player2_choice) {
+            winner = 0; // Tie
+        } else if ((player1_choice == 1 && player2_choice == 3) ||
+                   (player1_choice == 2 && player2_choice == 1) ||
+                   (player1_choice == 3 && player2_choice == 2)) {
+            winner = 1; // Player 1 wins
+        } else {
+            winner = 2; // Player 2 wins
+        }
+
+        // Display the result
+        if (winner == 0) {
+            printf("It's a tie!\n");
+        } else if (winner == 1) {
+            printf("Player 1 wins!\n");
+        } else {
+            printf("Player 2 wins!\n");
+        }
